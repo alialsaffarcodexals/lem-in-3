@@ -118,45 +118,9 @@ func ComputeTurns(ants int, lengths []int) int {
 }
 
 func assignPaths(paths [][]*Room, ants int) []int {
-	n := len(paths)
-	lengths := make([]int, n)
-	for i, p := range paths {
-		lengths[i] = len(p) - 1
-	}
+	lengths := pathLengths(paths)
 	t := ComputeTurns(ants, lengths)
-	counts := make([]int, n)
-	for i, l := range lengths {
-		c := t - l + 1
-		if c < 0 {
-			c = 0
-		}
-		counts[i] = c
-	}
-	total := 0
-	for _, c := range counts {
-		total += c
-	}
-	for i := n - 1; total > ants && i >= 0; i-- {
-		if counts[i] > 0 {
-			take := counts[i]
-			if take > total-ants {
-				take = total - ants
-			}
-			counts[i] -= take
-			total -= take
-		}
-	}
-	var order []int
-	active := true
-	for active {
-		active = false
-		for i := 0; i < n; i++ {
-			if counts[i] > 0 {
-				order = append(order, i)
-				counts[i]--
-				active = true
-			}
-		}
-	}
-	return order
+	counts := initialCounts(lengths, t)
+	counts = adjustCounts(counts, ants)
+	return orderFromCounts(counts)
 }
