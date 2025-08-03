@@ -40,11 +40,11 @@ func bestDisjointPaths(all [][]*Room, ants int) [][]*Room {
 			if len(cur) == 0 {
 				return
 			}
-			lengths := make([]int, len(cur))
-			for j, p := range cur {
-				lengths[j] = len(p) - 1
+			lens := make([]int, len(cur))
+			for j, path := range cur {
+				lens[j] = len(path) - 1
 			}
-			t := ComputeTurns(ants, lengths)
+			t := countTurns(ants, lens)
 			better := false
 			if t < bestTurns {
 				better = true
@@ -103,24 +103,31 @@ func FindPaths(g *Graph) [][]*Room {
 	return bestDisjointPaths(all, g.Ants)
 }
 
-func ComputeTurns(ants int, lengths []int) int {
-	for t := 1; ; t++ {
+// countTurns returns how many turns are needed for given paths and ants.
+func countTurns(ants int, lens []int) int {
+	for turns := 1; ; turns++ {
 		total := 0
-		for _, l := range lengths {
-			if t-l >= 0 {
-				total += t - l + 1
+		for _, l := range lens {
+			if turns-l >= 0 {
+				total += turns - l + 1
 			}
 		}
 		if total >= ants {
-			return t
+			return turns
 		}
 	}
 }
 
+// assignPaths picks a path index for every ant.
 func assignPaths(paths [][]*Room, ants int) []int {
-	lengths := pathLengths(paths)
-	t := ComputeTurns(ants, lengths)
-	counts := initialCounts(lengths, t)
-	counts = adjustCounts(counts, ants)
-	return orderFromCounts(counts)
+	// find length of each path
+	lens := getLens(paths)
+	// how many turns are needed in total
+	turns := countTurns(ants, lens)
+	// how many ants can start on each path
+	starts := countStarts(lens, turns)
+	// trim if we planned for more ants than we have
+	starts = trimStarts(starts, ants)
+	// make the order in which ants should leave
+	return planOrder(starts)
 }

@@ -6,69 +6,71 @@ import (
 	"strings"
 )
 
-// moveEvent represents an ant move to a room during simulation.
-type moveEvent struct {
-	id   int
+// helpers for simulation to keep SimulateMulti easy to read
+
+// move shows one ant stepping into a room.
+type move struct {
+	ant  int
 	room *Room
 }
 
-// moveStartedAnts advances ants that have already started along their paths.
-func moveStartedAnts(g *Graph, paths [][]*Room, pos []int, started []bool, occupancy map[*Room]int, finished *int, route []int) []moveEvent {
-	var evts []moveEvent
-	for id := 0; id < len(route); id++ {
-		if !started[id] {
+// moveAnts moves ants already on their paths.
+func moveAnts(g *Graph, paths [][]*Room, loc []int, going []bool, busy map[*Room]int, done *int, plan []int) []move {
+	var ms []move
+	for ant := 0; ant < len(plan); ant++ {
+		if !going[ant] {
 			continue
 		}
-		p := paths[route[id]]
-		if pos[id] < len(p)-1 {
-			next := p[pos[id]+1]
-			if next == g.End || occupancy[next] == 0 {
-				if p[pos[id]] != g.Start {
-					delete(occupancy, p[pos[id]])
+		path := paths[plan[ant]]
+		if loc[ant] < len(path)-1 {
+			next := path[loc[ant]+1]
+			if next == g.End || busy[next] == 0 {
+				if path[loc[ant]] != g.Start {
+					delete(busy, path[loc[ant]])
 				}
-				pos[id]++
+				loc[ant]++
 				if next != g.End {
-					occupancy[next] = id + 1
+					busy[next] = ant + 1
 				} else {
-					*finished++
+					*done++
 				}
-				evts = append(evts, moveEvent{id: id + 1, room: next})
+				ms = append(ms, move{ant: ant + 1, room: next})
 			}
 		}
 	}
-	return evts
+	return ms
 }
 
-// startQueuedAnts launches new ants at the beginning of their paths if possible.
-func startQueuedAnts(g *Graph, paths [][]*Room, queues [][]int, started []bool, pos []int, occupancy map[*Room]int, finished *int) []moveEvent {
-	var evts []moveEvent
-	for i, q := range queues {
+// startAnts starts new ants if the next room is free.
+func startAnts(g *Graph, paths [][]*Room, wait [][]int, going []bool, loc []int, busy map[*Room]int, done *int) []move {
+	var ms []move
+	for i, q := range wait {
 		if len(q) == 0 {
 			continue
 		}
 		ant := q[0]
 		next := paths[i][1]
-		if next == g.End || occupancy[next] == 0 {
-			started[ant] = true
-			pos[ant] = 1
+		if next == g.End || busy[next] == 0 {
+			going[ant] = true
+			loc[ant] = 1
 			if next != g.End {
-				occupancy[next] = ant + 1
+				busy[next] = ant + 1
 			} else {
-				*finished++
+				*done++
 			}
-			queues[i] = q[1:]
-			evts = append(evts, moveEvent{id: ant + 1, room: next})
+			wait[i] = q[1:]
+			ms = append(ms, move{ant: ant + 1, room: next})
 		}
 	}
-	return evts
+	return ms
 }
 
-// formatEvents converts move events into a formatted string output.
-func formatEvents(evts []moveEvent) string {
-	sort.Slice(evts, func(i, j int) bool { return evts[i].id < evts[j].id })
-	line := make([]string, len(evts))
-	for i, e := range evts {
-		line[i] = fmt.Sprintf("L%d-%s", e.id, e.room.Name)
+// formatMoves turns a slice of moves into output text.
+func formatMoves(ms []move) string {
+	sort.Slice(ms, func(i, j int) bool { return ms[i].ant < ms[j].ant })
+	line := make([]string, len(ms))
+	for i, m := range ms {
+		line[i] = fmt.Sprintf("L%d-%s", m.ant, m.room.Name)
 	}
 	return strings.Join(line, " ")
 }
